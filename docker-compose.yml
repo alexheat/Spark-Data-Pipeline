@@ -1,7 +1,5 @@
-version: '3'
-
-# for debugging only, extend/override this file for production usage (if you are using docker-compose in production at all)
-# also see the Dockerfile
+---
+version: '2'
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -30,12 +28,6 @@ services:
       - "29092"
     extra_hosts:
       - "moby:127.0.0.1"
-    # command: "bash -c 'echo Kafka is waiting 20 seconds for zookerkeepr to be ready, before creating a topic... && \
-    #      sleep 20 && \
-    #      echo Creating topic && \
-    #      kafka-topics --create --topic events --partitions 1 --replication-factor 1 --if-not-exists --zookeeper zookeeper:32181 && \
-    #      echo Checking topic creation && \
-    #      echo docker-compose exec kafka kafka-topics --describe --topic events --zookeeper zookeeper:32181 '"      
 
   cloudera:
     image: midsw205/cdh-minimal:latest
@@ -57,7 +49,7 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - "~/w205/project3:/app"
+      - "~/w205:/w205"
     command: bash
     depends_on:
       - cloudera
@@ -68,18 +60,21 @@ services:
 
   mids:
     image: midsw205/base:latest
-    build: flask-app/
+    stdin_open: true
+    tty: true
+    expose:
+      - "5000"
     ports:
-      - "5000:5000" # app 
-      - "5001:5001" # debug
-      - "3000:3000" # remote debugger
+      - "5000:5000"
     volumes:
-      - ./flask-app:/usr/src/app/
+      - "~/w205:/w205"
     environment:
-      - FLASK_DEBUG=1
-      - FLASK_APP=app.py
+      # - FLASK_DEBUG=1
+      - FLASK_APP=/w205/project3/game_api.py
       - FLASK_ENV=development
-    command: flask run --host 0.0.0.0 
+      
+    command: "bash -c 'echo Kafka is waiting 20 seconds for zookerkeepr to be ready, before creating a topic... && \
+              flask run --host 0.0.0.0'"
+    
     extra_hosts:
       - "moby:127.0.0.1"
-
