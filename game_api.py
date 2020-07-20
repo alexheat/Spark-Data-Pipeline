@@ -34,14 +34,14 @@ def default_response():
     return " This is the default response!\n" + log
 
 
-@app.route("/purchase_a_sword/", methods=['GET', 'POST'])
-def purchase_a_sword():
-    purchase_sword_event = {'event_type': 'purchase_sword'}
-    log = log_to_kafka('events', purchase_sword_event)
-    return "Sword Purchased!\n" + log
+@app.route("/purchase_item/", methods=['GET', 'POST'])
+def purchase_item():
+    purchase_event = {'event_type': 'purchase_item'}
+    log = log_to_kafka('events', purchase_event)
+    return "Item Purchased!\n" + log
 
-@app.route("/sell_a_sword/", methods=['GET', 'POST'])
-def sell_a_sword():
-    purchase_sword_event = {'event_type': 'sell_a_sword'}
-    log = log_to_kafka('events', purchase_sword_event)
-    return "Sword Sold!\n" + log
+@app.route("/sell_item/", methods=['GET', 'POST'])
+def sell_item():
+    sell_item_event = {'event_type': 'sell_item'}
+    log = log_to_kafka('events', sell_item_event)
+    return "Item Sold!\n" + log
