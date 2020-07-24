@@ -2,7 +2,7 @@
 Start the flask app
 ```
 docker-compose up -d
-docker-compose exec mids env FLASK_APP=/w205/project3/game_api.py flask run --host 0.0.0
+docker-compose exec mids env FLASK_APP=/w205/project3/game_api.py flask run --host 0.0.0.0
 ```
 * To do: Add commant to create kafka topic
 

@@ -29,8 +29,22 @@ services:
     extra_hosts:
       - "moby:127.0.0.1"
 
+  cloudera:
+    image: midsw205/hadoop:0.0.2
+    hostname: cloudera
+    expose:
+      - "8020" # nn
+      - "8888" # hue
+      - "9083" # hive thrift
+      - "10000" # hive jdbc
+      - "50070" # nn http
+    ports:
+      - "8888:8888"
+    extra_hosts:
+      - "moby:127.0.0.1"
+
   spark:
-    image: midsw205/spark-python:0.0.5
+    image: midsw205/spark-python:0.0.6
     stdin_open: true
     tty: true
     volumes:
@@ -38,10 +52,27 @@ services:
     expose:
       - "8888"
     ports:
-      - "8888:8888"
+      - "8889:8888" # 8888 conflicts with hue
+    depends_on:
+      - cloudera
+    environment:
+      HADOOP_NAMENODE: cloudera
+      HIVE_THRIFTSERVER: cloudera:9083
     extra_hosts:
       - "moby:127.0.0.1"
     command: bash
+
+  presto:
+    image: midsw205/presto:0.0.1
+    hostname: presto
+    volumes:
+      - ~/w205:/w205
+    expose:
+      - "8080"
+    environment:
+      HIVE_THRIFTSERVER: cloudera:9083
+    extra_hosts:
+      - "moby:127.0.0.1"
 
   mids:
     image: midsw205/base:0.1.9
@@ -55,3 +86,6 @@ services:
       - "5000:5000"
     extra_hosts:
       - "moby:127.0.0.1"
+
+  jmeter:
+    image: justb4/jmeter
