@@ -3,9 +3,40 @@
 """
 import json
 from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, from_json
+from pyspark.sql.types import StructType, StructField, StringType
 from pyspark import SparkContext
 import sys
+
+
+def purchase_or_sell_event_schema():
+    """
+    root
+    |--Accept: string (nullable: True)
+    |--Host: string (nullable: True)
+    |--User-Agent: string (nullable: True)
+    |--event_type: string (nullable: True)
+    |--timestamp: string (nullable: True)
+    """
+    return StructType([
+        StructField( "Accept", StringType(), True),
+        StructField( "Host", StringType(), True),
+        StructField( "User-Agent", StringType(), True),
+        StructField( "event_type", StringType(), True),
+        StructField( "timestamp", StringType(), True),
+        
+    ])
+
+@udf('boolean')
+def is_purchase(event_string):
+    event = json.loads(event_string)
+    return event['event_type'] == 'purchase_item'
+    
+@udf('boolean')
+def is_sell(event):
+    event = json.loads(event)
+    return event['event_type'] == 'sell_item'
+
 
 sc =SparkContext()
 
@@ -19,49 +50,59 @@ def main():
     
     #Read events from kafka
     game_api_raw = spark \
-      .read \
+      .readStream \
       .format("kafka") \
       .option("kafka.bootstrap.servers", "kafka:29092") \
       .option("subscribe","events") \
-      .option("startingOffsets", "earliest") \
-      .option("endingOffsets", "latest") \
       .load() 
-    game_api_raw.cache()
-
-    #Select the 'value' collumn as a string so it can be converted to a json object 
-    game_api_string = game_api_raw.select(game_api_raw.value.cast('string'))
-    game_api_df = game_api_string.rdd.map(lambda x: json.loads(x.value)).toDF()
-
-    #Save all of the responses with all collumns to a parque file
-    game_api_df.write.mode("overwrite").parquet("/tmp/game/all_api_requests")
-
-    #Drop the collum with the request headers as they are not need for the downstream analysis 
-    game_api_df_light = game_api_df.drop('request_headers')
-    game_api_df_light.show()
-
-    #Save the purchases and sales to seperate files for analysis 
-    game_api_df_light.filter(game_api_df_light.event_type=="sell_item").write.mode("overwrite").parquet("/tmp/game/sell_api")
-    game_api_df_light.filter(game_api_df_light.event_type=="purchase_item").write.mode("overwrite").parquet("/tmp/game/purchase_api")
-
     
-    #Create a function that can be used to list the contents of a directory in Hadoop
 
-    def list_hadoop_files(path):
-        hadoop = sc._jvm.org.apache.hadoop
-        fs = hadoop.fs.FileSystem
-        conf = hadoop.conf.Configuration() 
-        fs_path = hadoop.fs.Path(path)
-
-        try:
-            for f in fs.get(conf).listStatus(fs_path):
-                print(f.getPath(), f.getLen())
-        except:
-            print("Path '{}' does not exist.".format(path))
-
-    #Check that the files were created in Hadoop
-    print('\n++++++++++\n SHOW PARQUET FILES THAT WERE CREATED \n')
-    list_hadoop_files('/tmp/game/')
-    print('\n++++++++++\n')
+    purchases = game_api_raw \
+            .filter(is_purchase(game_api_raw.value.cast("string"))) \
+            .select(game_api_raw.value.cast("string").alias("game_api_raw"),
+                    game_api_raw.timestamp.cast("string"),
+                    from_json(game_api_raw.value.cast("string"),
+                                purchase_or_sell_event_schema()).alias("json")) \
+            .select("game_api_raw", "timestamp", "json.*")
+    
+    sells = game_api_raw \
+            .filter(is_sell(game_api_raw.value.cast("string"))) \
+            .select(game_api_raw.value.cast("string").alias("game_api_raw"),
+                    game_api_raw.timestamp.cast("string"),
+                    from_json(game_api_raw.value.cast("string"),
+                                purchase_or_sell_event_schema()).alias("json")) \
+            .select("game_api_raw", "timestamp", "json.*")
+    
+    game_api_raw_sink = game_api_raw \
+        .writeStream \
+        .format("parquet") \
+        .option("checkpointLocation", "/tmp/checkpoints_for_game_api_raw") \
+        .option("path", "/tmp/game/all_api_requests") \
+        .trigger( processingTime="10 seconds") \
+        .outputMode("append") \
+        .start ()
+    
+    purchase_sink = purchases \
+        .writeStream \
+        .format("parquet") \
+        .option("checkpointLocation", "/tmp/checkpoints_for_purchases") \
+        .option("path", "/tmp/game/purchase_api") \
+        .trigger( processingTime="10 seconds") \
+        .outputMode("append") \
+        .start ()
+    
+    sell_sink = sells \
+        .writeStream \
+        .format("parquet") \
+        .option("checkpointLocation", "/tmp/checkpoints_for_sells") \
+        .option("path", "/tmp/game/sell_api") \
+        .trigger( processingTime="10 seconds") \
+        .outputMode("append") \
+        .start ()
+        
+        
+    sell_sink.awaitTermination()
+    
 
 if __name__ == "__main__":
     main()
