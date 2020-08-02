@@ -56,30 +56,31 @@ cd w205/project3/
 
 docker-compose exec spark spark-submit /w205/project3/process_in_spark.py
 ```
+
+
+#### Open terminal window 5 for running hive and presto
 Check the files written to hadoop 
 
 ```
-docker-compose exec cloudera hadoop fs -ls /tmp/game
-```
-
-#### Open terminal window 5 for running hive and presto
-```
 cd w205/project3/
 
-docker-compose exec cloudera hive
+docker-compose exec cloudera hadoop fs -ls /tmp/game
+
 ```
 Create tables that can be queried in presto<br>
 Create table called purchase API 
 
 ```
+docker-compose exec cloudera hive
+
 create external table if not exists default.purchase_api (
-    user_id string,
-    event_type string,
-    item_type string,
-    timestamp string,
-    price double,
     currency string,
-    item string
+    event_type string,
+    item string,
+    item_type string,
+    price double,
+    timestamp string,
+    user_id string
   )
   stored as parquet 
   location '/tmp/game/purchase_api'
@@ -93,5 +94,7 @@ Type `ctrl+d` to exit hive
 ```
 docker-compose exec presto presto --server presto:8080 --catalog hive --schema default
 show tables;
-select count(*) as Count from purchase_api_final;
+select count(*) as Count from purchase_api;
+select * from purchase_api limit 5;
+select user_id, sum(price) as Revenue from purchase_api group by user_id;
 ```
