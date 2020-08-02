@@ -1,8 +1,6 @@
 
 
 # Commands to run 
-Start the flask app
-
 
 #### Open terminal window 1 to start start the containers, create kafka topic, and start flask app 
 ```
@@ -75,16 +73,16 @@ Create table called purchase API
 
 ```
 create external table if not exists default.purchase_api (
-    event_type string,
-    timestamp string,
     user_id string,
-    item string,
+    event_type string,
     item_type string,
+    timestamp string,
+    price double,
     currency string,
-    price decimal
+    item string
   )
   stored as parquet 
-  location '/tmp/purchase_api'
+  location '/tmp/game/purchase_api'
   tblproperties ("parquet.compress"="SNAPPY");
 ``` 
 Type `ctrl+d` to exit hive 
@@ -95,5 +93,5 @@ Type `ctrl+d` to exit hive
 ```
 docker-compose exec presto presto --server presto:8080 --catalog hive --schema default
 show tables;
-select * from purchase_api;
+select count(*) as Count from purchase_api_final;
 ```
