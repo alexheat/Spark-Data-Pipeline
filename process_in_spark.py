@@ -4,27 +4,20 @@
 import json
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import udf, from_json
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 from pyspark import SparkContext
 import sys
 
-
 def purchase_or_sell_event_schema():
-    """
-    root
-    |--Accept: string (nullable: True)
-    |--Host: string (nullable: True)
-    |--User-Agent: string (nullable: True)
-    |--event_type: string (nullable: True)
-    |--timestamp: string (nullable: True)
-    """
+
     return StructType([
-        StructField( "Accept", StringType(), True),
-        StructField( "Host", StringType(), True),
-        StructField( "User-Agent", StringType(), True),
         StructField( "event_type", StringType(), True),
-        StructField( "timestamp", StringType(), True),
-        
+        StructField( "item", StringType(), True),
+        StructField( "item_type", StringType(), True),
+        StructField( "user_id", StringType(), True),
+        StructField( "price", DoubleType(), True),
+        StructField( "currency", StringType(), True),
+
     ])
 
 @udf('boolean')
@@ -56,40 +49,22 @@ def main():
       .option("subscribe","events") \
       .load() 
     
-
-    purchases = game_api_raw \
-            .filter(is_purchase(game_api_raw.value.cast("string"))) \
-            .select(game_api_raw.value.cast("string").alias("game_api_raw"),
-                    game_api_raw.timestamp.cast("string"),
-                    from_json(game_api_raw.value.cast("string"),
-                                purchase_or_sell_event_schema()).alias("json")) \
-            .select("game_api_raw", "timestamp", "json.*")
-    
     sells = game_api_raw \
-            .filter(is_sell(game_api_raw.value.cast("string"))) \
-            .select(game_api_raw.value.cast("string").alias("game_api_raw"),
+        .filter(is_sell(game_api_raw.value.cast("string"))) \
+        .select(game_api_raw.value.cast("string").alias("game_api_raw"),
                     game_api_raw.timestamp.cast("string"),
                     from_json(game_api_raw.value.cast("string"),
                                 purchase_or_sell_event_schema()).alias("json")) \
-            .select("game_api_raw", "timestamp", "json.*")
+        .select("game_api_raw", "timestamp", "json.*")
+
     
-    game_api_raw_sink = game_api_raw \
-        .writeStream \
-        .format("parquet") \
-        .option("checkpointLocation", "/tmp/checkpoints_for_game_api_raw") \
-        .option("path", "/tmp/game/all_api_requests") \
-        .trigger( processingTime="10 seconds") \
-        .outputMode("append") \
-        .start ()
-    
-    purchase_sink = purchases \
-        .writeStream \
-        .format("parquet") \
-        .option("checkpointLocation", "/tmp/checkpoints_for_purchases") \
-        .option("path", "/tmp/game/purchase_api") \
-        .trigger( processingTime="10 seconds") \
-        .outputMode("append") \
-        .start ()
+    purchases = game_api_raw \
+        .filter(is_purchase(game_api_raw.value.cast("string"))) \
+        .select(game_api_raw.value.cast("string").alias("game_api_raw"),
+                    game_api_raw.timestamp.cast("string"),
+                    from_json(game_api_raw.value.cast("string"),
+                                purchase_or_sell_event_schema()).alias("json")) \
+        .select("game_api_raw", "timestamp", "json.*")
     
     sell_sink = sells \
         .writeStream \
@@ -99,10 +74,26 @@ def main():
         .trigger( processingTime="10 seconds") \
         .outputMode("append") \
         .start ()
-        
-        
+   
+    purchase_sink = purchases \
+        .writeStream \
+        .format("parquet") \
+        .option("checkpointLocation", "/tmp/checkpoints_for_purchases") \
+        .option("path", "/tmp/game/purchase_api") \
+        .trigger( processingTime="10 seconds") \
+        .outputMode("append") \
+        .start ()
+    
+    game_api_raw_sink = game_api_raw \
+        .writeStream \
+        .format("parquet") \
+        .option("checkpointLocation", "/tmp/checkpoints_for_game_api_raw") \
+        .option("path", "/tmp/game/all_api_requests_raw") \
+        .trigger( processingTime="10 seconds") \
+        .outputMode("append") \
+        .start ()
+    
     sell_sink.awaitTermination()
     
-
 if __name__ == "__main__":
     main()

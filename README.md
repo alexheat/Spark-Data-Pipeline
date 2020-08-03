@@ -85,16 +85,50 @@ create external table if not exists default.purchase_api (
   stored as parquet 
   location '/tmp/game/purchase_api'
   tblproperties ("parquet.compress"="SNAPPY");
+  
+  
+  
+create external table if not exists default.sell_api (
+    game_api_raw string,
+    timestamp string,
+    event_type string,
+    item string,
+    item_type string,
+    user_id string,
+    price double,
+    currency string
+  )
+  stored as parquet 
+  location '/tmp/game/sell_api'
+  tblproperties ("parquet.compress"="SNAPPY");
+
+create external table if not exists default.purchase_api (
+    game_api_raw string,
+    timestamp string,
+    event_type string,
+    item string,
+    item_type string,
+    user_id string,
+    price double,
+    currency string
+  )
+  stored as parquet 
+  location '/tmp/game/purchase_api'
+  tblproperties ("parquet.compress"="SNAPPY");
+  
 ``` 
 Type `ctrl+d` to exit hive 
-
 
 #### Query presto in in window 5
 
 ```
 docker-compose exec presto presto --server presto:8080 --catalog hive --schema default
 show tables;
+
 select count(*) as Count from purchase_api;
+select count(*) as Count from sell_api;
 select * from purchase_api limit 5;
+select * from sell_api limit 5;
 select user_id, sum(price) as Revenue from purchase_api group by user_id;
+select item, count(*) as ItemsSold from sell_api group by item;
 ```
