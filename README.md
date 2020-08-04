@@ -17,35 +17,18 @@ docker-compose exec mids env FLASK_APP=/w205/project3/game_api.py flask run --ho
 ```
 
 
-#### Open terminal window 2. Send post commands using Apache Bench
-There are json files with the sample data in the /testdata directory
-
-```
-cd w205/project3/
-docker-compose exec mids ab -n 10 -c 2 -p project3/testdata/steel_sword_user_1.json -T 'application/json' http://localhost:5000/purchase_item/
-docker-compose exec mids ab -n 20 -c 2 -p project3/testdata/steel_sword_user_2.json -T 'application/json' http://localhost:5000/purchase_item/
-docker-compose exec mids ab -n 5 -c 2 -p project3/testdata/steel_sword_user_2.json -T 'application/json' http://localhost:5000/sell_item/
-
-```
-
-#### Open terminal window 3 read from kafka to ensure that the messages are in the queue
-There should be 35 messages
+#### Open terminal window 2 to tail the kafka logs.
 ```
 cd w205/project3/
 
-docker-compose exec mids \
-  kafkacat -C -b kafka:29092 -t events -o beginning -e
-```
-Run kafkacat without -e so it will run continuously. Leave the window open so you can monitor the messages that are sent to kafka
-```
 docker-compose exec mids kafkacat -C -b kafka:29092 -t events -o beginning
 ```
 
-Run apache bench jobs again in terminal 2 to general more data and see it logged in windows 3
+#### Open terminal window 3 to run script to create random events
+Run bash script to create random events using apache bench jobs again and see it logged in windows 3
 ```
-docker-compose exec mids ab -n 10 -c 2 -p project3/testdata/steel_sword_user_1.json -T 'application/json' http://localhost:5000/purchase_item/
-docker-compose exec mids ab -n 20 -c 2 -p project3/testdata/steel_sword_user_2.json -T 'application/json' http://localhost:5000/purchase_item/
-docker-compose exec mids ab -n 5 -c 2 -p project3/testdata/steel_sword_user_2.json -T 'application/json' http://localhost:5000/sell_item/
+chmod +x runner.sh
+bash runner.sh
 ```
 
 #### Open terminal window 4 for running spark commands
