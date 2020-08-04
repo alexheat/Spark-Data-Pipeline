@@ -20,7 +20,7 @@ while true; do
   then
 	 docker-compose exec mids ab -n 2 -c 1 -p project3/tmp.json -T 'application/json' http://localhost:5000/purchase_item/
   else
- 	 docker-compose exec mids ab -n 2 -c 1 -p project3/tmp.json -T 'application/json' http://localhost:5000/purchase_item/
+ 	 docker-compose exec mids ab -n 2 -c 1 -p project3/tmp.json -T 'application/json' http://localhost:5000/sell_item/
   fi
   sleep 2
 done 
